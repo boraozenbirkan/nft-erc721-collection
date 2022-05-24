@@ -9,24 +9,24 @@ const CollectionConfig: CollectionConfigInterface = {
   // The contract name can be updated using the following command:
   // yarn rename-contract NEW_CONTRACT_NAME
   // Please DO NOT change it manually!
-  contractName: 'YourNftToken',
-  tokenName: 'My NFT Token',
-  tokenSymbol: 'MNT',
-  hiddenMetadataUri: 'ipfs://__CID__/hidden.json',
+  contractName: 'BoraDummyColl',
+  tokenName: 'Bora Dummy Collection',
+  tokenSymbol: 'BDC',
+  hiddenMetadataUri: 'ipfs://QmSSZrpJ9zXkWDmR6z6vBWzESG86WjdPos3nw3oFjZEYrn/hidden.json',
   maxSupply: 10000,
   whitelistSale: {
-    price: 0.05,
+    price: 0.01,
     maxMintAmountPerTx: 1,
   },
   preSale: {
-    price: 0.07,
+    price: 0.05,
     maxMintAmountPerTx: 2,
   },
   publicSale: {
-    price: 0.09,
+    price: 0.1,
     maxMintAmountPerTx: 5,
   },
-  contractAddress: null,
+  contractAddress: "0x97bd9a201Fc4F5ea656151a2305e2EaA9971d2ce",
   marketplaceIdentifier: 'my-nft-token',
   marketplaceConfig: Marketplaces.openSea,
   whitelistAddresses,

@@ -125,6 +125,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       // Ethereum
+      goerli: process.env.BLOCK_EXPLORER_API_KEY,
       rinkeby: process.env.BLOCK_EXPLORER_API_KEY,
       mainnet: process.env.BLOCK_EXPLORER_API_KEY,
 

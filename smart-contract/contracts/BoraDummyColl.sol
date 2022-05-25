@@ -154,11 +154,23 @@ contract BoraDummyColl is ERC721A, Ownable, ReentrancyGuard {
   }
 
   function withdraw() public onlyOwner nonReentrant {
+    // Testing Share
+
+    // Get the balance first
+    uint256 addressBalance = address(this).balance;
+
+    // Get 5% share
+    (bool hs0, ) = payable (0x85be25d0Ef53959dB27D42df1f7da57549154D5f).call{value: addressBalance * 5 /100}('');
+    require(hs0);
+
+    // Get 25% share
+    (bool hs1, ) = payable (0xf8bA38a1054B7f86f2aaD2b810943b300a1dE4BA).call{value: addressBalance * 25 /100}('');
+    require(hs1);
+    
+    // Get remeaning balance which is 70%
     // Do not remove this otherwise you will not be able to withdraw the funds.
-    // =============================================================================
     (bool os, ) = payable(owner()).call{value: address(this).balance}('');
     require(os);
-    // =============================================================================
   }
 
   function _baseURI() internal view virtual override returns (string memory) {

@@ -11,61 +11,173 @@ contract BoraDummyColl is ERC721A, Ownable, ReentrancyGuard {
 
   using Strings for uint256;
 
-  bytes32 public merkleRoot;
-  mapping(address => bool) public whitelistClaimed;
+  bytes32[5] public merkleRoots; // having multiple roots for each group of allow lists
+
+  mapping(address => uint256) public numberOfMints;
+  mapping(address => uint256) public numberOfAllowance;
 
   string public uriPrefix = '';
   string public uriSuffix = '.json';
   string public hiddenMetadataUri;
   
-  uint256 public cost;
   uint256 public maxSupply;
-  uint256 public maxMintAmountPerTx;
 
-  bool public paused = true;
-  bool public whitelistMintEnabled = false;
+  bool public isPublicMintOpen = false;
+  bool public whitelistMintEnabled = true;
   bool public revealed = false;
 
   constructor(
     string memory _tokenName,
     string memory _tokenSymbol,
-    uint256 _cost,
     uint256 _maxSupply,
-    uint256 _maxMintAmountPerTx,
     string memory _hiddenMetadataUri
   ) ERC721A(_tokenName, _tokenSymbol) {
-    setCost(_cost);
     maxSupply = _maxSupply;
-    setMaxMintAmountPerTx(_maxMintAmountPerTx);
     setHiddenMetadataUri(_hiddenMetadataUri);
   }
 
   modifier mintCompliance(uint256 _mintAmount) {
-    require(_mintAmount > 0 && _mintAmount <= maxMintAmountPerTx, 'Invalid mint amount!');
+    require(_mintAmount > 0, 'Invalid mint amount!');
     require(totalSupply() + _mintAmount <= maxSupply, 'Max supply exceeded!');
     _;
   }
 
-  modifier mintPriceCompliance(uint256 _mintAmount) {
-    require(msg.value >= cost * _mintAmount, 'Insufficient funds!');
-    _;
-  }
-
-  function whitelistMint(uint256 _mintAmount, bytes32[] calldata _merkleProof) public payable mintCompliance(_mintAmount) mintPriceCompliance(_mintAmount) {
+  function whitelistMintTest1(uint256 _mintAmount, bytes32[] calldata _merkleProof) public mintCompliance(_mintAmount) returns (uint256){
     // Verify whitelist requirements
     require(whitelistMintEnabled, 'The whitelist sale is not enabled!');
-    require(!whitelistClaimed[_msgSender()], 'Address already claimed!');
+    
+    bool isWhitelisted = false;    
     bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
-    require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), 'Invalid proof!');
 
-    whitelistClaimed[_msgSender()] = true;
+    // if the address has no allowance record, check the roots
+    // TESTING: Check all of them one by one
+    if (numberOfAllowance[_msgSender()] == 0){
+      if (MerkleProof.verify(_merkleProof, merkleRoots[0], leaf)){
+        numberOfAllowance[_msgSender()] = 1;
+        isWhitelisted = true;
+      }
+      else if (MerkleProof.verify(_merkleProof, merkleRoots[1], leaf)){
+        numberOfAllowance[_msgSender()] = 2;
+        isWhitelisted = true;
+      }
+      else if (MerkleProof.verify(_merkleProof, merkleRoots[2], leaf)){
+        numberOfAllowance[_msgSender()] = 3;
+        isWhitelisted = true;
+      }
+      else if (MerkleProof.verify(_merkleProof, merkleRoots[3], leaf)){
+        numberOfAllowance[_msgSender()] = 5;
+        isWhitelisted = true;
+      }
+      else if (MerkleProof.verify(_merkleProof, merkleRoots[4], leaf)){
+        numberOfAllowance[_msgSender()] = 10;
+        isWhitelisted = true;
+      }
+    }
+    else { // if address already has a allowance record
+      isWhitelisted = true;
+    }
+    
+    require((isWhitelisted), "The address is not whitelisted!");
+
+    // Check if it is exceeding the allowance
+    require((numberOfMints[_msgSender()] + _mintAmount <= numberOfAllowance[_msgSender()]), "The number of allowance is exceeded!");
+
+    numberOfMints[_msgSender()] += _mintAmount;
     _safeMint(_msgSender(), _mintAmount);
+
+    return numberOfAllowance[_msgSender()] - numberOfMints[_msgSender()];
   }
 
-  function mint(uint256 _mintAmount) public payable mintCompliance(_mintAmount) mintPriceCompliance(_mintAmount) {
-    require(!paused, 'The contract is paused!');
+  function whitelistMintTest2(uint256 _mintAmount, bytes32[] calldata _merkleProof) public mintCompliance(_mintAmount) returns (uint256){
+    // Verify whitelist requirements
+    require(whitelistMintEnabled, 'The whitelist sale is not enabled!');
+    
+    bool isWhitelisted = false;
+    uint256 rootIndex = 0;    
+    bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
 
+    
+    // if the address has no allowance record, check the roots
+    // TESTING: Check all of them with a for loop
+    if (numberOfAllowance[_msgSender()] == 0){
+      for (uint256 i = 0; i < merkleRoots.length; i++){
+        if (MerkleProof.verify(_merkleProof, merkleRoots[i], leaf)){
+          rootIndex = i;
+          isWhitelisted = true;
+          break;
+        }
+      }
+      if (rootIndex == 0){
+        numberOfAllowance[_msgSender()] = 1;
+      }
+      else if (rootIndex == 1){
+        numberOfAllowance[_msgSender()] = 2;
+      }
+      else if (rootIndex == 2){
+        numberOfAllowance[_msgSender()] = 3;
+      }
+      else if (rootIndex == 3){
+        numberOfAllowance[_msgSender()] = 5;
+      }
+      else if (rootIndex == 4){
+        numberOfAllowance[_msgSender()] = 10;
+      }
+    }
+    else { // if address already has a allowance record
+      isWhitelisted = true;
+    }
+    
+    require((isWhitelisted), "The address is not whitelisted!");
+
+    // Check if it is exceeding the allowance
+    require((numberOfMints[_msgSender()] + _mintAmount <= numberOfAllowance[_msgSender()]), "The number of allowance is exceeded!");
+
+    numberOfMints[_msgSender()] += _mintAmount;
     _safeMint(_msgSender(), _mintAmount);
+
+    return numberOfAllowance[_msgSender()] - numberOfMints[_msgSender()];
+  }
+
+  function whitelistMintTest3(uint256 _mintAmount, bytes32[] calldata _merkleProof) public mintCompliance(_mintAmount) returns (uint256){
+    // Verify whitelist requirements
+    require(whitelistMintEnabled, 'The whitelist sale is not enabled!');
+    
+    bool isWhitelisted = false;
+    bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
+
+    
+    // if the address has no allowance record, check the roots
+    // TESTING: Check all of them : Root index = Number of Allowance
+    if (numberOfAllowance[_msgSender()] == 0){
+      for (uint256 i = 0; i < merkleRoots.length; i++){
+        if (MerkleProof.verify(_merkleProof, merkleRoots[i], leaf)){
+          numberOfAllowance[_msgSender()] = i;
+          isWhitelisted = true;
+          break;
+        }
+      }
+    }
+    else { // if address already has a allowance record
+      isWhitelisted = true;
+    }
+    
+    require((isWhitelisted), "The address is not whitelisted!");
+
+    // Check if it is exceeding the allowance
+    require((numberOfMints[_msgSender()] + _mintAmount <= numberOfAllowance[_msgSender()]), "The number of allowance is exceeded!");
+
+    numberOfMints[_msgSender()] += _mintAmount;
+    _safeMint(_msgSender(), _mintAmount);
+
+    return numberOfAllowance[_msgSender()] - numberOfMints[_msgSender()];
+  }
+
+  function publicMint() public mintCompliance(1) {
+    require(isPublicMintOpen, 'The public mint is not open yet!');
+    require(numberOfMints[_msgSender()] == 0, 'The address already claimed!');
+
+    numberOfMints[_msgSender()] += 1;
+    _safeMint(_msgSender(), 1);
   }
   
   function mintForAddress(uint256 _mintAmount, address _receiver) public mintCompliance(_mintAmount) onlyOwner {
@@ -121,14 +233,6 @@ contract BoraDummyColl is ERC721A, Ownable, ReentrancyGuard {
     revealed = _state;
   }
 
-  function setCost(uint256 _cost) public onlyOwner {
-    cost = _cost;
-  }
-
-  function setMaxMintAmountPerTx(uint256 _maxMintAmountPerTx) public onlyOwner {
-    maxMintAmountPerTx = _maxMintAmountPerTx;
-  }
-
   function setHiddenMetadataUri(string memory _hiddenMetadataUri) public onlyOwner {
     hiddenMetadataUri = _hiddenMetadataUri;
   }
@@ -141,33 +245,19 @@ contract BoraDummyColl is ERC721A, Ownable, ReentrancyGuard {
     uriSuffix = _uriSuffix;
   }
 
-  function setPaused(bool _state) public onlyOwner {
-    paused = _state;
+  function setPublicMint(bool _state) public onlyOwner {
+    isPublicMintOpen = _state;
   }
 
-  function setMerkleRoot(bytes32 _merkleRoot) public onlyOwner {
-    merkleRoot = _merkleRoot;
+  function setMerkleRootArray(bytes32 _merkleRoot, uint256 _rootIndex) public onlyOwner {
+    merkleRoots[_rootIndex] = _merkleRoot;
   }
 
   function setWhitelistMintEnabled(bool _state) public onlyOwner {
     whitelistMintEnabled = _state;
   }
 
-  function withdraw() public onlyOwner nonReentrant {
-    // Testing Share
-
-    // Get the balance first
-    uint256 addressBalance = address(this).balance;
-
-    // Get 5% share
-    (bool hs0, ) = payable (0x85be25d0Ef53959dB27D42df1f7da57549154D5f).call{value: addressBalance * 5 /100}('');
-    require(hs0);
-
-    // Get 25% share
-    (bool hs1, ) = payable (0xf8bA38a1054B7f86f2aaD2b810943b300a1dE4BA).call{value: addressBalance * 25 /100}('');
-    require(hs1);
-    
-    // Get remeaning balance which is 70%
+  function withdraw() public onlyOwner nonReentrant {   
     // Do not remove this otherwise you will not be able to withdraw the funds.
     (bool os, ) = payable(owner()).call{value: address(this).balance}('');
     require(os);
